@@ -22,14 +22,24 @@ spec:
         app: blockscout
         tier: api
     spec:
+      initContainers:
+        - image: ${IMAGE_TAG_RELEASE}
+          imagePullPolicy: Always
+          name: blockscout-init
+          command:
+            - bin/blockscout
+            - eval
+            - '"Elixir.Explorer.ReleaseTasks.create_and_migrate()"'
+          envFrom:
+            - secretRef:
+                name: blockscout-secret
       containers:
         - image: ${IMAGE_TAG_RELEASE}
           imagePullPolicy: Always
           name: blockscout
           command:
-            - bash
-            - -c
-            - '"bin/blockscout eval \"Elixir.Explorer.ReleaseTasks.create_and_migrate()\" && bin/blockscout start"'
+            - bin/blockscout
+            - start
           envFrom:
             - secretRef:
                 name: blockscout-secret
