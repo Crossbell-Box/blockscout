@@ -500,7 +500,7 @@ msgstr ""
 #: lib/block_scout_web/templates/layout/_footer.html.eex:22
 #, elixir-autogen, elixir-format
 msgid "Blockscout is a tool for inspecting and analyzing EVM based blockchains. Blockchain explorer for Ethereum Networks."
-msgstr ""
+msgstr "Crossbell is a platform for owning your social activities, composed of an EVM-compatible blockchain and a set of smart contracts."
 
 #: lib/block_scout_web/templates/transaction_state/_state_change.html.eex:9
 #, elixir-autogen, elixir-format

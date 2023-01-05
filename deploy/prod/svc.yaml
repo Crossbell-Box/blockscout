@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: blockscout-api
+  namespace: crossbell
+spec:
+  type: ClusterIP
+  selector:
+    app: blockscout
+    tier: api
+  ports:
+    - name: http
+      protocol: TCP
+      port: 4000
+      targetPort: 4000

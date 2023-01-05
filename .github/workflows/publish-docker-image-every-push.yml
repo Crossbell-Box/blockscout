@@ -1,4 +1,4 @@
-name: Publish Docker image on every push to master branch
+name: Push and Deploy
 
 on:
   push:
@@ -7,15 +7,17 @@ on:
 env:
   OTP_VERSION: '24.3.4.1'
   ELIXIR_VERSION: '1.13.4'
-  NEXT_RELEASE_VERSION: 5.0.0
+  IMAGE_NAME: rss3/blockscout
+  REGION_ID: us-east-1
+  DEV_ACK_CLUSTER_ID: cd1d0ffc40b5242b39ddda1864e71e30d
+  PROD_ACK_CLUSTER_ID: cfc647c22fd6848b5a602ad4d7470632b
 
 jobs:
-  push_to_registry:
+  build:
     name: Push Docker image to Docker Hub
     runs-on: ubuntu-latest
     outputs:
-      release-version: ${{ steps.output-step.outputs.release-version }}
-      short-sha: ${{ steps.output-step.outputs.short-sha }}
+      version: ${{ steps.meta.outputs.version }}
     steps:
       - name: Check out the repo
         uses: actions/checkout@v3
@@ -36,16 +38,9 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: blockscout/blockscout
-
-      - name: Add SHORT_SHA env property with commit short sha
-        run: echo "SHORT_SHA=`echo ${GITHUB_SHA} | cut -c1-8`" >> $GITHUB_ENV
-
-      - name: Add outputs
-        run: |
-          echo "::set-output name=release-version::${{ env.NEXT_RELEASE_VERSION }}"
-          echo "::set-output name=short-sha::${{ env.SHORT_SHA }}"
-        id: output-step
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v3
@@ -53,54 +48,45 @@ jobs:
           context: .
           file: ./docker/Dockerfile
           push: true
-          cache-from: type=registry,ref=blockscout/blockscout:buildcache
-          cache-to: type=registry,ref=blockscout/blockscout:buildcache,mode=max
-          tags: blockscout/blockscout:latest, blockscout/blockscout:${{ env.NEXT_RELEASE_VERSION }}-prerelease-${{ env.SHORT_SHA }}
-          build-args: |
-            CACHE_EXCHANGE_RATES_PERIOD=
-            DISABLE_READ_API=false
-            API_PATH=
-            NETWORK_PATH=
-            DISABLE_WEBAPP=false
-            DISABLE_WRITE_API=false
-            CACHE_ENABLE_TOTAL_GAS_USAGE_COUNTER=
-            WOBSERVER_ENABLED=false
-            ADMIN_PANEL_ENABLED=false
-            CACHE_ADDRESS_WITH_BALANCES_UPDATE_INTERVAL=
-            DISABLE_BRIDGE_MARKET_CAP_UPDATER=false
-            CACHE_BRIDGE_MARKET_CAP_UPDATE_INTERVAL=
-            SOCKET_ROOT=
+          cache-from: type=registry,ref=rss3/blockscout:buildcache
+          cache-to: type=registry,ref=rss3/blockscout:buildcache,mode=max
+          tags: ${{ steps.meta.outputs.tags }}
+          # build-args: |
+          #   CACHE_EXCHANGE_RATES_PERIOD=
+          #   DISABLE_READ_API=false
+          #   API_PATH=
+          #   NETWORK_PATH=
+          #   DISABLE_WEBAPP=false
+          #   DISABLE_WRITE_API=false
+          #   CACHE_ENABLE_TOTAL_GAS_USAGE_COUNTER=
+          #   WOBSERVER_ENABLED=false
+          #   ADMIN_PANEL_ENABLED=false
+          #   CACHE_ADDRESS_WITH_BALANCES_UPDATE_INTERVAL=
+          #   DISABLE_BRIDGE_MARKET_CAP_UPDATER=false
+          #   CACHE_BRIDGE_MARKET_CAP_UPDATE_INTERVAL=
+          #   SOCKET_ROOT=
 
-      - name: Build and push Docker image for frontend
-        uses: docker/build-push-action@v3
+  deploy-prod:
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Set K8s context
+        uses: aliyun/ack-set-context@v1
         with:
-          context: .
-          file: ./docker/Dockerfile
-          push: true
-          cache-from: type=registry,ref=blockscout/blockscout:buildcache
-          tags: blockscout/blockscout:frontend-main
-          build-args: |
-            CACHE_EXCHANGE_RATES_PERIOD=
-            DISABLE_READ_API=false
-            API_PATH=
-            NETWORK_PATH=
-            DISABLE_WEBAPP=false
-            DISABLE_WRITE_API=false
-            CACHE_ENABLE_TOTAL_GAS_USAGE_COUNTER=
-            WOBSERVER_ENABLED=false
-            ADMIN_PANEL_ENABLED=false
-            CACHE_ADDRESS_WITH_BALANCES_UPDATE_INTERVAL=
-            DISABLE_BRIDGE_MARKET_CAP_UPDATER=false
-            CACHE_BRIDGE_MARKET_CAP_UPDATE_INTERVAL=
-            SOCKET_ROOT=
-            SESSION_COOKIE_DOMAIN=${{ secrets.FRONTEND_MAIN }}
-  tests:
-    needs: push_to_registry
-    uses: blockscout/blockscout-ci-cd/.github/workflows/e2e_new.yaml@master
-    with:
-      blockscoutImage: blockscout/blockscout:${{ needs.push_to_registry.outputs.release-version }}-prerelease-${{ needs.push_to_registry.outputs.short-sha }}
-      blockscoutIngressHost: e2e-blockscout-$GITHUB_SHA_SHORT
-      frontendIngressHost: e2e-blockscout-$GITHUB_SHA_SHORT
-      gethIngressHost: e2e-geth-$GITHUB_SHA_SHORT
-      scVerifierIngressHost: e2e-sc-verifier-$GITHUB_SHA_SHORT
-    secrets: inherit
+          access-key-id: "${{ secrets.ACCESS_KEY_ID }}"
+          access-key-secret: "${{ secrets.ACCESS_KEY_SECRET }}"
+          cluster-id: "${{ env.PROD_ACK_CLUSTER_ID }}"
+      - name: Install Tools
+        run: |
+          wget https://github.com/mikefarah/yq/releases/download/v4.25.1/yq_linux_amd64.tar.gz -O - | tar xz && mv yq_linux_amd64 /usr/local/bin/yq
+          curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.22.10/bin/linux/amd64/kubectl && chmod +x kubectl && mv kubectl /usr/local/bin/kubectl
+      - uses: sljeff/secrets2env@main
+        with:
+          secrets-json: ${{ toJson(secrets) }}
+      - name: Deploy
+        env:
+          IMAGE_TAG_RELEASE: ${{ env.IMAGE_NAME }}:${{ needs.build.outputs.version }}
+        run: |
+          sh apply.sh deploy/prod/*
