@@ -21,6 +21,9 @@ spec:
       labels:
         app: blockscout
         tier: api
+      annotations:
+        prometheus.io/port: "4000"
+        prometheus.io/scrape: "true"
     spec:
       initContainers:
         - image: flosspicks/blockscout
