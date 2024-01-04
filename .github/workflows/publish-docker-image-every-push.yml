@@ -10,8 +10,8 @@ jobs:
     uses: NaturalSelectionLabs/Daedalus/.github/workflows/docker-tpl.yaml@main
     with:
       images: flosspicks/blockscout
-      context: ./docker/Dockerfile
-      dockerfile: ./Dockerfile
+      context: .
+      dockerfile: ./docker/Dockerfile
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
