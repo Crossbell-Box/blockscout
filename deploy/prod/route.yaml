@@ -5,10 +5,10 @@ metadata:
   namespace: crossbell
 spec:
   entryPoints:
-  - web
+    - websecure
   routes:
-  - kind: Rule
-    match: Host(`scan.crossbell.io`) && PathPrefix(`/`)
-    services:
-    - name: blockscout-api
-      port: 4000
+    - kind: Rule
+      match: Host(`scan.crossbell.io`)
+      services:
+        - name: blockscout
+          port: 4000

@@ -22,15 +22,8 @@ spec:
         app: blockscout
         tier: api
     spec:
-      nodeSelector:
-        rss3.io/usage: csb-others
-      tolerations:
-      - key: "rss3.io/usage"
-        operator: "Equal"
-        value: "csb-others"
-        effect: "NoSchedule"
       initContainers:
-        - image: ${IMAGE_TAG_RELEASE}
+        - image: flosspicks/blockscout
           imagePullPolicy: Always
           name: blockscout-init
           command:
@@ -39,9 +32,9 @@ spec:
             - '"Elixir.Explorer.ReleaseTasks.create_and_migrate()"'
           envFrom:
             - secretRef:
-                name: blockscout-secret
+                name: blockscout
       containers:
-        - image: ${IMAGE_TAG_RELEASE}
+        - image: flosspicks/blockscout
           imagePullPolicy: Always
           name: blockscout
           command:
@@ -49,7 +42,7 @@ spec:
             - start
           envFrom:
             - secretRef:
-                name: blockscout-secret
+                name: blockscout
           ports:
             - containerPort: 4000
               protocol: TCP
