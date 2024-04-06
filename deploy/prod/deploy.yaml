@@ -5,7 +5,7 @@ metadata:
   namespace: crossbell
 spec:
   progressDeadlineSeconds: 600
-  replicas: 2
+  replicas: 3
   revisionHistoryLimit: 10
   selector:
     matchLabels:
@@ -51,11 +51,11 @@ spec:
               protocol: TCP
           resources:
             requests:
-              memory: "2500Mi"
-              cpu: "1500m"
+              memory: "4Gi"
+              cpu: "2"
             limits:
-              memory: "6000Mi"
-              cpu: "4000m"
+              memory: "8Gi"
+              cpu: "4"
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           readinessProbe:
